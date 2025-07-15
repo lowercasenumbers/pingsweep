@@ -1,0 +1,76 @@
+name: Build and Release pingsweep Binary
+on:
+  push:
+    branches:
+      - main # Trigger on pushes to the main branch.
+              # For proper versioned releases (e.g., v1.0.0), it's recommended to use:
+              # tags:
+              #   - 'v*'
+    # Only run this workflow if changes are detected in these paths
+    paths:
+      - 'pingsweep.go' # The main Go source file
+      - 'go.mod'       # Changes to Go modules/dependencies
+      - 'go.sum'       # Changes to Go module checksums
+      - 'Makefile'     # Changes to the build process itself
+      # Add any other source code or build-related files here
+      # For example: - 'src/**' if your Go code is in a 'src' directory
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    # Permissions needed for creating a release and uploading assets.
+    permissions:
+      contents: write # This grants permission to create and write to releases
+
+    steps:
+      # Action to check out your repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Action to set up the Go environment
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      # Ensures go.mod and go.sum are up-to-date and downloads dependencies
+      - name: Go Mod Tidy
+        run: go mod tidy
+
+      - name: Build pingsweep binary
+        run: go build -o pingsweep pingsweep.go
+
+      # Optional: Upload pingsweep binary as a general workflow artifact.
+      # This is useful for debugging or if you want the binary available
+      # even if the release creation fails. The name here is distinct from the release asset.
+      - name: Upload pingsweep binary as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pingsweep-linux-amd64-workflow-artifact
+          path: pingsweep
+
+      # Create a GitHub Release and attach the binary.
+      # This step will only run if the previous steps (build) are successful.
+      - name: Create GitHub Release
+        # Assign an ID to this step to reference its outputs (if needed)
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        env:
+          # GITHUB_TOKEN is automatically provided by GitHub Actions
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Using github.run_number to create a unique tag for each push to main.
+          # If using 'on: push: tags: [v*]', you would use tag_name: ${{ github.ref }}
+          tag_name: "continuous-build-${{ github.run_number }}"
+          name: "Continuous Build ${{ github.run_number }}"
+          body: |
+            Automated build from commit ${{ github.sha }}
+            This is a continuous integration build.
+            Download the `pingsweep` binary below.
+          draft: false # Set to true to create a draft release
+          prerelease: false # Set to true for prerelease versions
+          # Path to the binary to upload as a release asset.
+          # The file will be named 'pingsweep' in the release assets.
+          files: pingsweep
+
