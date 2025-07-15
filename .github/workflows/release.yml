@@ -1,0 +1,81 @@
+# .github/workflows/release.yml
+
+name: Release pingsweep
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger this workflow ONLY when a Git tag starting with 'v' is pushed (e.g., v1.0.0, v1.0.1-beta.1)
+
+jobs:
+  build_and_release:
+    # Permissions needed for creating a release and uploading assets.
+    permissions:
+      contents: write # This grants permission to create and write to releases
+
+    # Use a matrix strategy to build for multiple OS/architectures
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        goarch: [amd64] # You can add arm64 here if needed for specific OS
+      fail-fast: false # Don't stop other builds if one fails
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      # Action to check out your repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Action to set up the Go environment
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      # Ensures go.mod and go.sum are up-to-date and downloads dependencies
+      - name: Go Mod Tidy
+        run: go mod tidy
+
+      # Build pingsweep binary for the current OS/architecture
+      - name: Build pingsweep binary
+        # Determine the output filename based on OS
+        # For Windows, it's pingsweep.exe; for others, it's just pingsweep
+        run: |
+          BUILD_NAME="pingsweep"
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            BUILD_NAME="${BUILD_NAME}.exe"
+          fi
+          go build -o ${BUILD_NAME} pingsweep.go
+        id: build_binary_step # Assign an ID to get the output filename
+
+      # Capture the built binary's name for the release asset
+      - name: Set output filename
+        id: set_filename
+        run: |
+          FILENAME="pingsweep"
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            FILENAME="${FILENAME}.exe"
+          fi
+          echo "filename=$FILENAME" >> $GITHUB_OUTPUT
+
+      # Create a GitHub Release and attach the binary.
+      # This step will only run if the previous steps (build) are successful.
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GITHUB_TOKEN is automatically provided by GitHub Actions
+        with:
+          # Use the Git tag as the release tag and name
+          tag_name: ${{ github.ref_name }} # e.g., v1.0.0, v1.0.1-beta.1
+          name: Release ${{ github.ref_name }}
+          body: |
+            Automated release for version ${{ github.ref_name }}.
+            See commit ${{ github.sha }} for changes.
+          draft: false
+          # Automatically mark as prerelease if the tag name contains a hyphen (e.g., v1.0.0-beta.1)
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          # Attach the built binary as a release asset.
+          # The file will be named 'pingsweep' (or 'pingsweep.exe') in the release assets.
+          files: ${{ steps.set_filename.outputs.filename }}
+
