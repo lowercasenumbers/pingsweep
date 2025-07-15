@@ -1,3 +1,5 @@
+# .github/workflows/release.yml
+
 name: Release pingsweep
 
 on:
@@ -40,8 +42,8 @@ jobs:
 
       # Build pingsweep binary for the current OS/architecture
       - name: Build pingsweep binary
-        # Determine the output filename based on OS
-        # For Windows, it's pingsweep.exe; for others, it's just pingsweep
+        # Explicitly use bash shell for this step, especially important on Windows runners
+        shell: bash
         run: |
           BUILD_NAME="pingsweep"
           if [ "${{ runner.os }}" == "Windows" ]; then
@@ -53,6 +55,8 @@ jobs:
       # Capture the built binary's name for the release asset
       - name: Set output filename
         id: set_filename
+        # Explicitly use bash shell for this step, especially important on Windows runners
+        shell: bash
         run: |
           FILENAME="pingsweep"
           if [ "${{ runner.os }}" == "Windows" ]; then

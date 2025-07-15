@@ -1,3 +1,5 @@
+# .github/workflows/build.yml
+
 name: CI Build pingsweep
 
 on:
@@ -47,13 +49,21 @@ jobs:
 
       # Build pingsweep binary for the current OS/architecture
       - name: Build pingsweep binary
-        run: go build -o pingsweep-${{ runner.os }}-${{ matrix.goarch }} pingsweep.go
+        # Explicitly use bash shell for this step, especially important on Windows runners
+        shell: bash
+        run: |
+          BUILD_NAME="pingsweep"
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            BUILD_NAME="${BUILD_NAME}.exe"
+          fi
+          go build -o ${BUILD_NAME} pingsweep.go
 
       # Upload the built binary as a workflow artifact
       - name: Upload pingsweep binary as artifact
         uses: actions/upload-artifact@v4
         with:
           name: pingsweep-${{ runner.os }}-${{ matrix.goarch }}
+          # Use the same logic here to ensure the path is correct for Windows .exe
           path: pingsweep-${{ runner.os }}-${{ matrix.goarch }}${{ runner.os == 'Windows' && '.exe' || '' }}
           retention-days: 5
 
