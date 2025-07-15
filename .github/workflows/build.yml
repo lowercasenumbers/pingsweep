@@ -1,5 +1,3 @@
-# .github/workflows/build.yml
-
 name: CI Build pingsweep
 
 on:
@@ -8,8 +6,7 @@ on:
       - main # Trigger on pushes to the main branch
     paths: # Only run if relevant files change
       - 'pingsweep.go'
-      - 'go.mod'
-      - 'go.sum'
+      - 'go.mod'       # Include go.mod in paths even if go.sum isn't used
       - 'Makefile'
   pull_request:
     branches:
@@ -17,7 +14,6 @@ on:
     paths: # Only run if relevant files change
       - 'pingsweep.go'
       - 'go.mod'
-      - 'go.sum'
       - 'Makefile'
 
 jobs:
@@ -41,19 +37,17 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
-          # Set GOARCH based on the matrix for cross-compilation if needed,
-          # though 'runs-on' usually handles the primary architecture.
-          # For explicit cross-compilation, you'd set GOOS and GOARCH env vars.
+          # Disable Go module caching explicitly since go.sum does not exist (no external dependencies)
+          cache: false
 
-      # Ensures go.mod and go.sum are up-to-date and downloads dependencies
+      # Ensures go.mod is up-to-date.
+      # go mod tidy will not create go.sum if only standard library imports are used.
       - name: Go Mod Tidy
         run: go mod tidy
 
       # Build pingsweep binary for the current OS/architecture
       - name: Build pingsweep binary
         run: go build -o pingsweep-${{ runner.os }}-${{ matrix.goarch }} pingsweep.go
-        # For Windows, the executable will automatically get a .exe extension.
-        # For Linux/macOS, it won't.
 
       # Upload the built binary as a workflow artifact
       - name: Upload pingsweep binary as artifact
@@ -61,5 +55,5 @@ jobs:
         with:
           name: pingsweep-${{ runner.os }}-${{ matrix.goarch }}
           path: pingsweep-${{ runner.os }}-${{ matrix.goarch }}${{ runner.os == 'Windows' && '.exe' || '' }}
-          # How long to keep the artifact (optional)
-          retention-days: 5 # Set artifact retention to 5 days
+          retention-days: 5
+

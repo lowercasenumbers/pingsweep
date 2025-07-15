@@ -1,5 +1,3 @@
-# .github/workflows/release.yml
-
 name: Release pingsweep
 
 on:
@@ -32,8 +30,11 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
+          # Disable Go module caching explicitly since go.sum does not exist (no external dependencies)
+          cache: false
 
-      # Ensures go.mod and go.sum are up-to-date and downloads dependencies
+      # Ensures go.mod is up-to-date.
+      # go mod tidy will not create go.sum if only standard library imports are used.
       - name: Go Mod Tidy
         run: go mod tidy
 
